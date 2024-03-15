@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "gui": {
+      "commandName": "Project",
+      "workingDirectory": "C:\\GitHub\\swbf-repack\\bin\\Release"
+    }
+  }
+}
