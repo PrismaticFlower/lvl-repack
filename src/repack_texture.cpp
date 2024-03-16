@@ -30,6 +30,9 @@ struct texture {
 auto pick_format(std::span<const D3DFORMAT> formats, const bool prefer_compressed)
    -> D3DFORMAT
 {
+   if (std::ranges::contains(formats, D3DFMT_L8)) return D3DFMT_L8;
+   if (std::ranges::contains(formats, D3DFMT_A8L8)) return D3DFMT_A8L8;
+
    if (prefer_compressed) {
       if (std::ranges::contains(formats, D3DFMT_DXT3)) return D3DFMT_DXT3;
       if (std::ranges::contains(formats, D3DFMT_DXT1)) return D3DFMT_DXT1;
