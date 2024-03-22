@@ -23,21 +23,10 @@ namespace gui
 				);
 		}
 
-		private void pickFolder_Click(object sender, EventArgs e)
-		{
-			String folderPath = null;
-			FolderBrowserDialog pickDialog = new FolderBrowserDialog();
-			pickDialog.Description = "Pick Folder";
-			if (pickDialog.ShowDialog() == DialogResult.OK)
-			{
-				folderPath = pickDialog.SelectedPath;
-			}
-			pickDialog.Dispose();
-
-			AddPath( folderPath);
-		}
-
-		private void AddPath( string path)
+		/// <summary>
+		/// Can take a file or Folder. All .lvl files under the folder will be added.
+		/// </summary>
+		private void AddPath(string path)
 		{
 			if (path != null)
 			{
@@ -85,6 +74,42 @@ namespace gui
 			}
 		}
 
+		#region Drag/Drop Handling
+		// Remember, for drag/drop the control's 'AllowDrop' property needs to be set to true
+		private void lvlsList_DragEnter(object sender, DragEventArgs e)
+		{
+			if (e.Data.GetDataPresent(DataFormats.FileDrop))
+				e.Effect = DragDropEffects.Copy; // Show copy cursor
+			else
+				e.Effect = DragDropEffects.None; // Show no-drop cursor
+		}
+
+		private void lvlsList_DragDrop(object sender, DragEventArgs e)
+		{
+			string[] files = (string[])e.Data.GetData(DataFormats.FileDrop, false);
+
+			// Process the dropped files/folders here
+			foreach (string file in files)
+			{
+				AddPath(file);
+			}
+		}
+		#endregion Drag/Drop handling
+
+		#region Click Handlers
+		private void pickFolder_Click(object sender, EventArgs e)
+		{
+			String folderPath = null;
+			FolderBrowserDialog pickDialog = new FolderBrowserDialog();
+			pickDialog.Description = "Pick Folder";
+			if (pickDialog.ShowDialog() == DialogResult.OK)
+			{
+				folderPath = pickDialog.SelectedPath;
+			}
+			pickDialog.Dispose();
+
+			AddPath( folderPath);
+		}
 
 		private void repackButton_Click(object sender, EventArgs e)
 		{
@@ -164,25 +189,6 @@ namespace gui
 			Process.Start(url); // open GitHub link in default browser.
 		}
 
-		private void lvlsList_DragEnter(object sender, DragEventArgs e)
-		{
-			if (e.Data.GetDataPresent(DataFormats.FileDrop))
-				e.Effect = DragDropEffects.Copy; // Show copy cursor
-			else
-				e.Effect = DragDropEffects.None; // Show no-drop cursor
-		}
-
-		private void lvlsList_DragDrop(object sender, DragEventArgs e)
-		{
-			string[] files = (string[])e.Data.GetData(DataFormats.FileDrop, false);
-
-			// Process the dropped files/folders here
-			foreach (string file in files)
-			{
-				AddPath(file);
-			}
-		}
-
 		private void removeSelectedToolStripMenuItem_Click(object sender, EventArgs e)
 		{
 			for(int i = lvlsList.SelectedIndices.Count - 1; i >= 0; i--)
@@ -190,5 +196,9 @@ namespace gui
 				lvlsList.Items.RemoveAt(lvlsList.SelectedIndices[i]);
 			}
 		}
+		#endregion Click Handlers
+
+
+
 	}
 }
