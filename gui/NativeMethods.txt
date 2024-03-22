@@ -1,4 +1,0 @@
-﻿FileOpenDialog
-IFileOpenDialog
-CoCreateInstance
-CoTaskMemFree
