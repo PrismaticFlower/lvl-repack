@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Windows.Forms;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.Shell;
@@ -12,8 +13,6 @@ namespace gui
 {
 	public partial class Repack : Form
 	{
-		List<string> files = new List<string>();
-
 		public Repack()
 		{
 			InitializeComponent();
@@ -42,6 +41,7 @@ namespace gui
 
 					try
 					{
+						List<string> files = new List<string>();
 						files.AddRange(Directory.EnumerateFiles(new string(coFolderPath), "*.lvl", SearchOption.AllDirectories));
 
 						lvlsList.BeginUpdate();
@@ -63,12 +63,29 @@ namespace gui
 			}
 		}
 
+		private void IncrementProgress()
+		{
+			if (this.InvokeRequired)
+			{
+				this.Invoke(new Action(() => IncrementProgress()));
+			}
+			else
+			{
+				repackProgress.Value++;
+			}
+		}
+
 		private async void repackButton_Click(object sender, EventArgs e)
 		{
+			List<string> files = new List<string>();
+			foreach (var v in lvlsList.Items) files.Add(v.ToString());
+			repackProgress.Enabled = true;
+			repackProgress.Minimum = 0;
+			repackProgress.Maximum = files.Count;
 
 			await Parallel.ForEachAsync(files, async (file, cancel) =>
 			{
-				string repackArgs = preferCompressedTextures.Checked ? $"{file} prefer_compessed_textures" : $"{file}";
+				string repackArgs = preferCompressedTextures.Checked ? $"\"{file}\" prefer_compessed_textures" : $"\"{file}\"";
 
 				ProcessStartInfo startInfo = new ProcessStartInfo(".\\repack.exe", repackArgs);
 
@@ -83,7 +100,7 @@ namespace gui
 				if (process == null)
 				{
 					message = $"Failed to launch repack for {file}";
-
+					IncrementProgress();
 				}
 				else
 				{
@@ -97,6 +114,7 @@ namespace gui
 					{
 						message = await process.StandardError.ReadToEndAsync();
 					}
+					IncrementProgress();
 				}
 
 				if (outputDisplay.InvokeRequired)
@@ -108,6 +126,18 @@ namespace gui
 					outputDisplay.AppendText(file);
 				}
 			});
+		}
+
+		private void clearFilesMenuItem_Click(object sender, EventArgs e)
+		{
+			lvlsList.Items.Clear();
+			outputDisplay.Clear();
+			repackProgress.Value = 0;
+		}
+
+		private void exitToolStripMenuItem_Click(object sender, EventArgs e)
+		{
+			Close();
 		}
 	}
 }
