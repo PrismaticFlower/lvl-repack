@@ -62,9 +62,6 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
-  </ItemGroup>
-  <ItemGroup>
     <Content Include="compress_icon.ico" />
   </ItemGroup>
   <ItemGroup>
