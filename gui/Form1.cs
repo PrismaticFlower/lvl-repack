@@ -1,31 +1,30 @@
-using System;
-using System.IO;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Windows.Forms;
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.Shell;
+using static System.Windows.Forms.Design.AxImporter;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
-using System.Threading.Tasks;
 
 namespace gui
 {
-	public partial class RepackForm : Form
+	public partial class Repack : Form
 	{
-		public RepackForm()
+
+		public Repack()
 		{
 			InitializeComponent();
 			var tip = new System.Windows.Forms.ToolTip();
-			tip.SetToolTip(lvlsList, 
-				"Choose 'Pick Folder' or drag and drop .lvl files\n"+
+			tip.SetToolTip(lvlsList,
+				"Choose 'Pick Folder' or drag and drop .lvl files\n" +
 				"and/or folders containing .lvls onto the list."
 				);
 		}
 
-		/// <summary>
-		/// Can take a file or Folder. All .lvl files under the folder will be added.
-		/// </summary>
+		// Add a file or folder to the lvls to process.
+		// if path is a folder, all .lvls found under the folder will be added.
 		private void AddPath(string path)
 		{
 			if (path != null)
@@ -74,8 +73,8 @@ namespace gui
 			}
 		}
 
-		#region Drag/Drop Handling
-		// Remember, for drag/drop the control's 'AllowDrop' property needs to be set to true
+		#region Drag/Drop handlers
+		// For drag/drop the control's 'AllowDrop' property needs to be set to true
 		private void lvlsList_DragEnter(object sender, DragEventArgs e)
 		{
 			if (e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -94,111 +93,147 @@ namespace gui
 				AddPath(file);
 			}
 		}
-		#endregion Drag/Drop handling
+		#endregion Drag/Drop handlers
 
-		#region Click Handlers
+
 		private void pickFolder_Click(object sender, EventArgs e)
 		{
-			String folderPath = null;
-			FolderBrowserDialog pickDialog = new FolderBrowserDialog();
-			pickDialog.Description = "Pick Folder";
-			if (pickDialog.ShowDialog() == DialogResult.OK)
-			{
-				folderPath = pickDialog.SelectedPath;
-			}
-			pickDialog.Dispose();
+			PInvoke.CoCreateInstance(
+				 typeof(FileOpenDialog).GUID,
+			null,
+			Windows.Win32.System.Com.CLSCTX.CLSCTX_INPROC_SERVER,
+				 out IFileOpenDialog pickDialog).ThrowOnFailure();
 
-			AddPath( folderPath);
+			pickDialog.SetOptions(FILEOPENDIALOGOPTIONS.FOS_PATHMUSTEXIST | FILEOPENDIALOGOPTIONS.FOS_FILEMUSTEXIST | FILEOPENDIALOGOPTIONS.FOS_NOCHANGEDIR | FILEOPENDIALOGOPTIONS.FOS_PICKFOLDERS);
+			pickDialog.SetTitle("Pick Folder");
+			pickDialog.SetOkButtonLabel("Pick");
+
+			try
+			{
+				pickDialog.Show((HWND)pickFolder.Handle);
+				pickDialog.GetResult(out IShellItem selectedFolder);
+
+				unsafe
+				{
+					selectedFolder.GetDisplayName(SIGDN.SIGDN_FILESYSPATH, out PWSTR coFolderPath);
+
+					try
+					{
+						string path = new string(coFolderPath);
+						AddPath(path);
+					}
+					finally
+					{
+						PInvoke.CoTaskMemFree(coFolderPath);
+					}
+				}
+			}
+			catch (COMException exception)
+			{
+			}
 		}
 
-		private void repackButton_Click(object sender, EventArgs e)
+		private async void repackButton_Click(object sender, EventArgs e)
 		{
+			string repackExe = ".\\repack.exe";
+			if (!File.Exists(repackExe))
+			{
+				MessageBox.Show("'Repack.exe' not found!\nPlace 'repack.exe' in the same folder as 'lvl-repack.exe'. ", "Error!", MessageBoxButtons.OK, MessageBoxIcon.Error);
+				return;
+			}
 			List<string> files = new List<string>();
 			foreach (var v in lvlsList.Items)
 				files.Add(v.ToString());
 			repackProgress.Enabled = true;
 			repackProgress.Minimum = 0;
 			repackProgress.Maximum = files.Count;
-			bool compressTextures = preferCompressedTextures.Checked;
 
-			Parallel.ForEach(files, async (file, cancel) =>
+			await Parallel.ForEachAsync(files, async (file, cancel) =>
 			{
-				string repackArgs = compressTextures ? $"\"{file}\" prefer_compessed_textures" : $"\"{file}\"";
+				string repackArgs = preferCompressedTextures.Checked ? $"\"{file}\" prefer_compessed_textures" : $"\"{file}\"";
 				long sizeBefore = new FileInfo(file).Length;
 
-				ProcessStartInfo startInfo = new ProcessStartInfo(".\\repack.exe", repackArgs);
+				string debugStr = $".\\repack.exe {repackArgs}";
+				System.Diagnostics.Debug.WriteLine(debugStr);
+				ProcessStartInfo startInfo = new ProcessStartInfo(repackExe, repackArgs);
 
 				startInfo.RedirectStandardOutput = true;
 				startInfo.RedirectStandardError = true;
 				startInfo.UseShellExecute = false;
 				startInfo.CreateNoWindow = true;
-				Process process = Process.Start(startInfo);
+				Process? process = Process.Start(startInfo);
 
 				string message = "";
 
 				if (process == null)
 				{
 					message = $"Failed to launch repack for {file}";
+
 				}
 				else
 				{
-					process.WaitForExit();
+					await process.WaitForExitAsync();
 
 					if (process.ExitCode == 0)
 					{
 						string output = await process.StandardOutput.ReadToEndAsync();
 						long sizeAfter = new FileInfo(file).Length;
 						double sizeReduced = (1.0 * sizeBefore - sizeAfter) / (1024.0 * 1024.0);
-						message = string.Format("[Reduced by {0:F2} MB] {1}", sizeReduced,output);
+						message = string.Format("[Reduced by {0:F2} MB] {1}", sizeReduced, output);
 					}
 					else
 					{
 						message = await process.StandardError.ReadToEndAsync();
 					}
 				}
+
 				IncrementProgress();
 				AddOutputMessage(message);
 			});
 		}
 
-		private void clearFilesMenuItem_Click(object sender, EventArgs e)
+		private void clearItemsToolStripMenuItem_Click(object sender, EventArgs e)
 		{
 			lvlsList.Items.Clear();
 			outputDisplay.Clear();
 			repackProgress.Value = 0;
 		}
 
-		private void exitToolStripMenuItem_Click(object sender, EventArgs e)
+		private void removeSelectedItemToolStripMenuItem_Click(object sender, EventArgs e)
 		{
-			Close();
-		}
-
-		private void aboutLvlpackToolStripMenuItem_Click(object sender, EventArgs e)
-		{
-			MessageBox.Show(
-				"lvl-repack lets you shrink the size of your Battlefront 1 and 2 .lvl\n"+
-				"files by reducing space taken by textures.\n"+
-				"Click 'Pick Folder' or\n"+
-				"drag and drop files and folders onto the lvl files list."
-				,"About lvl-repack");
-		}
-
-		private void lvlpackOnGitHubToolStripMenuItem_Click(object sender, EventArgs e)
-		{
-			string url = "https://github.com/PrismaticFlower/lvl-repack";
-			Process.Start(url); // open GitHub link in default browser.
-		}
-
-		private void removeSelectedToolStripMenuItem_Click(object sender, EventArgs e)
-		{
-			for(int i = lvlsList.SelectedIndices.Count - 1; i >= 0; i--)
+			for (int i = lvlsList.SelectedIndices.Count - 1; i >= 0; i--)
 			{
 				lvlsList.Items.RemoveAt(lvlsList.SelectedIndices[i]);
 			}
 		}
-		#endregion Click Handlers
 
+		private void exitToolStripMenuItem_Click(object sender, EventArgs e)
+		{
+			this.Close();
+		}
 
+		private void gitHubRepoToolStripMenuItem_Click(object sender, EventArgs e)
+		{
+			string url = "https://github.com/PrismaticFlower/lvl-repack";
+			try
+			{
+				ProcessStartInfo psi = new ProcessStartInfo { FileName = url, UseShellExecute = true };
+				Process.Start(psi);
+			}
+			catch
+			{
+				MessageBox.Show("Error while opening: " + url); 
+			}
+		}
 
+		private void aboutToolStripMenuItem1_Click(object sender, EventArgs e)
+		{
+			MessageBox.Show(
+				"lvl-repack lets you shrink the size of your Battlefront 1 and 2 .lvl\n" +
+				"files by reducing space taken by textures.\n" +
+				"Click 'Pick Folder' or\n" +
+				"drag and drop files and folders onto the lvl files list."
+				, "About lvl-repack");
+		}
 	}
 }
