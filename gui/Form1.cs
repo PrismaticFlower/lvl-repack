@@ -136,14 +136,17 @@ namespace gui
 		private async void repackButton_Click(object sender, EventArgs e)
 		{
 			string repackExe = ".\\repack.exe";
+
 			if (!File.Exists(repackExe))
 			{
-				MessageBox.Show("'Repack.exe' not found!\nPlace 'repack.exe' in the same folder as 'lvl-repack.exe'. ", "Error!", MessageBoxButtons.OK, MessageBoxIcon.Error);
+				MessageBox.Show("'Repack.exe' not found!\nPlace 'repack.exe' in the same folder as 'lvl-repack.exe'.", "Error!", MessageBoxButtons.OK, MessageBoxIcon.Error);
 				return;
 			}
+
 			List<string> files = new List<string>();
 			foreach (var v in lvlsList.Items)
 				files.Add(v.ToString());
+
 			repackProgress.Enabled = true;
 			repackProgress.Minimum = 0;
 			repackProgress.Maximum = files.Count;
@@ -222,7 +225,7 @@ namespace gui
 			}
 			catch
 			{
-				MessageBox.Show("Error while opening: " + url); 
+				MessageBox.Show("Error while opening: " + url);
 			}
 		}
 
