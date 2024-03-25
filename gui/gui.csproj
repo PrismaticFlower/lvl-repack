@@ -7,7 +7,14 @@
 		<UseWindowsForms>true</UseWindowsForms>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<AssemblyName>lvl-repack</AssemblyName>
+		<StartupObject>gui.Program</StartupObject>
+		<_SuppressWinFormsTrimError>true</_SuppressWinFormsTrimError>
+		<ApplicationIcon>compress_icon.ico</ApplicationIcon>
 	</PropertyGroup>
+
+	<ItemGroup>
+	  <Content Include="compress_icon.ico" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.49-beta">
