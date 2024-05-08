@@ -133,10 +133,9 @@ namespace gui
 			}
 		}
 
-		private async void repackButton_Click(object sender, EventArgs e)
+		private void repackButton_Click(object sender, EventArgs e)
 		{
 			string repackExe = ".\\repack.exe";
-
 			if (!File.Exists(repackExe))
 			{
 				MessageBox.Show("'Repack.exe' not found!\nPlace 'repack.exe' in the same folder as 'lvl-repack.exe'.", "Error!", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -149,11 +148,22 @@ namespace gui
 
 			repackProgress.Enabled = true;
 			repackProgress.Minimum = 0;
+			repackProgress.Value = 0;
 			repackProgress.Maximum = files.Count;
+			totalReduced = 0;
+			bool compressTextures = preferCompressedTextures.Checked;
+			Task.Run(() => RepackFiles(files, compressTextures)); // dispatch the task to keep ui responsive.
+		}
+
+		long totalReduced = 0;
+
+		private async Task RepackFiles(List<string> files, bool compressTextures)
+		{
+			string repackExe = ".\\repack.exe";
 
 			await Parallel.ForEachAsync(files, async (file, cancel) =>
 			{
-				string repackArgs = preferCompressedTextures.Checked ? $"\"{file}\" prefer_compessed_textures" : $"\"{file}\"";
+				string repackArgs = compressTextures ? $"\"{file}\" prefer_compessed_textures" : $"\"{file}\"";
 				long sizeBefore = new FileInfo(file).Length;
 
 				string debugStr = $".\\repack.exe {repackArgs}";
@@ -182,7 +192,9 @@ namespace gui
 						string output = await process.StandardOutput.ReadToEndAsync();
 						long sizeAfter = new FileInfo(file).Length;
 						double sizeReduced = (1.0 * sizeBefore - sizeAfter) / (1024.0 * 1024.0);
-						message = string.Format("[Reduced by {0:F2} MB] {1}", sizeReduced, output);
+						Interlocked.Add(ref totalReduced, (sizeBefore - sizeAfter));
+						message = string.Format("<Total Reduced: {0:F2} MB> [File Reduced {1:F2} MB] {2}", totalReduced / (1024.0 * 1024.0),
+							sizeReduced, output);
 					}
 					else
 					{
