@@ -122,6 +122,7 @@
 			outputDisplay.Multiline = true;
 			outputDisplay.Name = "outputDisplay";
 			outputDisplay.ReadOnly = true;
+			outputDisplay.ScrollBars = ScrollBars.Vertical;
 			outputDisplay.Size = new Size(432, 360);
 			outputDisplay.TabIndex = 2;
 			// 
@@ -154,6 +155,8 @@
 			// 
 			preferCompressedTextures.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
 			preferCompressedTextures.AutoSize = true;
+			preferCompressedTextures.Checked = true;
+			preferCompressedTextures.CheckState = CheckState.Checked;
 			preferCompressedTextures.Location = new Point(249, 452);
 			preferCompressedTextures.Margin = new Padding(4, 5, 4, 5);
 			preferCompressedTextures.Name = "preferCompressedTextures";
